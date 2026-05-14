@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>Gas Safety System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #0a0c10;
+  --surface: #12151c;
+  --surface2: #1a1e28;
+  --border: rgba(255,255,255,0.07);
+  --text: #f0f2f8;
+  --muted: #6b7280;
+  --safe: #22d3a5;
+  --safe-bg: rgba(34,211,165,0.1);
+  --warn: #f59e0b;
+  --warn-bg: rgba(245,158,11,0.1);
+  --danger: #ef4444;
+  --danger-bg: rgba(239,68,68,0.1);
+  --blue: #60a5fa;
+  --blue-bg: rgba(96,165,250,0.1);
+  --accent: #22d3a5;
+  --mono: 'Space Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overscroll-behavior: none;
+}
+
+/* Animated grid bg */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(34,211,165,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34,211,165,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; padding: 0 0 80px; }
+
+/* ── Header ── */
+.header {
+  padding: 48px 20px 20px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.header-left h1 {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.header-left h2 {
+  font-family: var(--sans);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+.refresh-btn {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  transition: all 0.2s;
+}
+.refresh-btn:active { transform: scale(0.92); background: var(--surface2); }
+.refresh-btn.spinning svg { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Status Hero ── */
+.status-hero {
+  margin: 4px 16px 16px;
+  border-radius: 20px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s ease;
+  border: 1px solid var(--border);
+}
+.status-hero.safe { background: linear-gradient(135deg, rgba(34,211,165,0.15) 0%, var(--surface) 60%); border-color: rgba(34,211,165,0.3); }
+.status-hero.gas { background: linear-gradient(135deg, rgba(245,158,11,0.18) 0%, var(--surface) 60%); border-color: rgba(245,158,11,0.35); }
+.status-hero.flame { background: linear-gradient(135deg, rgba(239,68,68,0.15) 0%, var(--surface) 60%); border-color: rgba(239,68,68,0.3); }
+.status-hero.danger { background: linear-gradient(135deg, rgba(239,68,68,0.25) 0%, rgba(245,158,11,0.1) 60%); border-color: rgba(239,68,68,0.5); }
+
+.status-hero::after {
+  content: '';
+  position: absolute;
+  top: -30px; right: -30px;
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  opacity: 0.06;
+  transition: background 0.4s;
+}
+.status-hero.safe::after { background: var(--safe); }
+.status-hero.gas::after { background: var(--warn); }
+.status-hero.flame::after, .status-hero.danger::after { background: var(--danger); }
+
+.status-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--mono);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 5px 10px; border-radius: 8px;
+  margin-bottom: 12px;
+  transition: all 0.4s;
+}
+.status-badge.safe { background: var(--safe-bg); color: var(--safe); }
+.status-badge.gas { background: var(--warn-bg); color: var(--warn); }
+.status-badge.flame { background: var(--danger-bg); color: var(--danger); }
+.status-badge.danger { background: var(--danger-bg); color: var(--danger); }
+
+.pulse { width: 7px; height: 7px; border-radius: 50%; }
+.pulse.safe { background: var(--safe); box-shadow: 0 0 0 0 rgba(34,211,165,0.6); animation: pulseGreen 2s infinite; }
+.pulse.gas { background: var(--warn); box-shadow: 0 0 0 0 rgba(245,158,11,0.6); animation: pulseAmber 1.5s infinite; }
+.pulse.flame, .pulse.danger { background: var(--danger); box-shadow: 0 0 0 0 rgba(239,68,68,0.6); animation: pulseRed 1s infinite; }
+
+@keyframes pulseGreen { 0%,100%{box-shadow:0 0 0 0 rgba(34,211,165,0.6)} 50%{box-shadow:0 0 0 8px rgba(34,211,165,0)} }
+@keyframes pulseAmber { 0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0.6)} 50%{box-shadow:0 0 0 8px rgba(245,158,11,0)} }
+@keyframes pulseRed { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.8)} 50%{box-shadow:0 0 0 10px rgba(239,68,68,0)} }
+
+.status-main-text {
+  font-family: var(--sans);
+  font-size: 28px; font-weight: 600;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+  transition: color 0.4s;
+}
+.status-sub {
+  font-size: 13px; color: var(--muted); margin-top: 4px;
+}
+.status-time {
+  position: absolute; bottom: 16px; right: 18px;
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+}
+
+/* ── Section label ── */
+.section-label {
+  font-family: var(--mono);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 20px;
+  margin: 20px 0 10px;
+}
+
+/* ── Metric grid ── */
+.metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 16px;
+}
+.metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s;
+}
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  border-radius: 16px 16px 0 0;
+  transition: background 0.3s;
+}
+.metric-card.c-green::before { background: var(--safe); }
+.metric-card.c-blue::before { background: var(--blue); }
+.metric-card.c-amber::before { background: var(--warn); }
+.metric-card.c-red::before { background: var(--danger); }
+
+.metric-icon {
+  font-size: 18px; margin-bottom: 8px;
+  opacity: 0.7;
+}
+.metric-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.metric-value {
+  font-family: var(--mono);
+  font-size: 26px; font-weight: 700;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+.metric-unit { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 2px; }
+.metric-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+/* ── Gas bar ── */
+.gas-bar-section { padding: 0 16px; }
+.gas-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+}
+.gas-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.gas-card-label { font-size: 13px; font-weight: 500; }
+.gas-raw {
+  font-family: var(--mono); font-size: 13px;
+  padding: 3px 8px; border-radius: 6px;
+  background: var(--surface2); color: var(--muted);
+}
+.bar-track {
+  height: 10px; background: var(--surface2); border-radius: 99px; overflow: hidden; position: relative;
+  margin-bottom: 6px;
+}
+.bar-fill {
+  height: 100%; border-radius: 99px;
+  transition: width 0.5s ease, background 0.5s ease;
+  background: var(--safe);
+}
+.bar-markers {
+  display: flex; justify-content: space-between;
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+}
+.threshold-line {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 2px; background: rgba(239,68,68,0.5);
+}
+
+/* ── Relay row cards ── */
+.relay-section { padding: 0 16px; }
+.relay-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.relay-item {
+  display: flex; align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+  transition: background 0.2s;
+}
+.relay-item:last-child { border-bottom: none; }
+.relay-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; flex-shrink: 0;
+}
+.relay-icon.green { background: var(--safe-bg); }
+.relay-icon.amber { background: var(--warn-bg); }
+.relay-icon.red { background: var(--danger-bg); }
+.relay-icon.blue { background: var(--blue-bg); }
+.relay-icon.gray { background: var(--surface2); }
+.relay-name { flex: 1; }
+.relay-name p { font-size: 14px; font-weight: 500; }
+.relay-name span { font-size: 11px; color: var(--muted); }
+.relay-badge {
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  padding: 4px 9px; border-radius: 6px; letter-spacing: 0.08em;
+  transition: all 0.3s;
+}
+.relay-badge.on { background: var(--safe-bg); color: var(--safe); }
+.relay-badge.off { background: var(--surface2); color: var(--muted); }
+.relay-badge.alert { background: var(--danger-bg); color: var(--danger); }
+.relay-badge.clear { background: var(--safe-bg); color: var(--safe); }
+
+/* ── Servo ── */
+.servo-section { padding: 0 16px; }
+.servo-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+}
+.servo-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.servo-deg {
+  font-family: var(--mono); font-size: 28px; font-weight: 700;
+  color: var(--blue);
+}
+.servo-deg span { font-size: 14px; font-weight: 400; color: var(--muted); }
+.servo-state { font-size: 11px; color: var(--muted); }
+.servo-track {
+  height: 6px; background: var(--surface2); border-radius: 99px;
+  position: relative; margin-bottom: 6px;
+}
+.servo-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--blue); position: absolute;
+  top: -6px; transition: left 0.15s ease;
+  box-shadow: 0 0 10px rgba(96,165,250,0.4);
+}
+.servo-labels {
+  display: flex; justify-content: space-between;
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+}
+
+/* ── SIM900 + Blynk ── */
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px; }
+.info-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 14px;
+}
+.info-card h3 { font-size: 11px; color: var(--muted); font-weight: 500; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+.info-row { display: flex; flex-direction: column; margin-bottom: 8px; }
+.info-row:last-child { margin-bottom: 0; }
+.info-row-label { font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+.info-row-val { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--text); }
+.info-row-val.green { color: var(--safe); }
+.info-row-val.red { color: var(--danger); }
+.vpin-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+.vpin { background: var(--surface2); border-radius: 8px; padding: 6px; text-align: center; }
+.vpin-name { font-size: 9px; color: var(--muted); }
+.vpin-val { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--text); margin-top: 2px; }
+
+/* ── Log ── */
+.log-section { padding: 0 16px; }
+.log-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 14px; max-height: 200px; overflow-y: auto;
+}
+.log-item {
+  display: flex; gap: 10px; padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.log-item:last-child { border-bottom: none; }
+.log-time { font-family: var(--mono); font-size: 10px; color: var(--muted); min-width: 54px; padding-top: 1px; }
+.log-msg { flex: 1; }
+.log-msg.ok { color: var(--safe); }
+.log-msg.warn { color: var(--warn); }
+.log-msg.danger { color: var(--danger); }
+.log-msg.info { color: var(--text); }
+
+/* ── Config ── */
+.config-section { padding: 0 16px; }
+.config-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 16px;
+}
+.config-card h3 { font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.1em; }
+.config-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.config-row:last-child { margin-bottom: 0; }
+.config-label { font-size: 13px; color: var(--muted); min-width: 100px; }
+.config-input {
+  flex: 1; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 9px 12px;
+  color: var(--text); font-family: var(--mono); font-size: 12px;
+  outline: none; transition: border-color 0.2s;
+}
+.config-input:focus { border-color: var(--accent); }
+.save-btn {
+  width: 100%; margin-top: 12px;
+  background: var(--accent); color: #000;
+  border: none; border-radius: 12px;
+  padding: 13px; font-family: var(--sans);
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  letter-spacing: 0.01em;
+}
+.save-btn:active { opacity: 0.85; transform: scale(0.98); }
+
+/* ── Connection status bar ── */
+.conn-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  max-width: 480px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  backdrop-filter: blur(10px);
+}
+.conn-dot { width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; display: inline-block; }
+.conn-dot.online { background: var(--safe); animation: pulseGreen 2s infinite; }
+.conn-dot.offline { background: var(--danger); }
+.conn-dot.loading { background: var(--warn); animation: pulseAmber 1s infinite; }
+.conn-text { font-size: 12px; color: var(--muted); display: flex; align-items: center; }
+.conn-right { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+
+/* ── Error toast ── */
+.toast {
+  position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px);
+  background: var(--danger-bg); color: var(--danger);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 12px; padding: 10px 16px;
+  font-size: 13px; z-index: 200;
+  transition: transform 0.3s ease;
+  white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── Animations ── */
+.fade-in { animation: fadeIn 0.4s ease forwards; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.card-row { animation: fadeIn 0.3s ease; animation-fill-mode: both; }
+.card-row:nth-child(1) { animation-delay: 0.05s; }
+.card-row:nth-child(2) { animation-delay: 0.1s; }
+.card-row:nth-child(3) { animation-delay: 0.15s; }
+.card-row:nth-child(4) { animation-delay: 0.2s; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+</style>
+</head>
+<body>
+
+<div id="toast" class="toast">⚠ Could not reach Blynk — check token</div>
+
+<div class="app">
+  <!-- Header -->
+  <div class="header fade-in">
+    <div class="header-left">
+      <h1>ECE PROJECT · LPU</h1>
+      <h2>Gas Safety System</h2>
+    </div>
+    <button class="refresh-btn" id="refreshBtn" onclick="fetchAll()" aria-label="Refresh">
+      <svg id="refreshIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Status hero -->
+  <div class="status-hero safe fade-in" id="statusHero">
+    <div class="status-badge safe" id="statusBadge">
+      <div class="pulse safe" id="statusPulse"></div>
+      <span id="statusLabel">SAFE</span>
+    </div>
+    <div class="status-main-text" id="statusMain">All systems normal</div>
+    <div class="status-sub" id="statusSub">Gas &amp; flame sensors nominal</div>
+    <div class="status-time" id="statusTime">--:--:--</div>
+  </div>
+
+  <!-- Metrics -->
+  <div class="section-label">Live sensors</div>
+  <div class="metric-grid card-row">
+    <div class="metric-card c-amber">
+      <div class="metric-icon">💨</div>
+      <div class="metric-label">Gas level (MQ)</div>
+      <div class="metric-value" id="mGas">---<span class="metric-unit"></span></div>
+      <div class="metric-sub" id="mGasSub">V0 · GPIO 34</div>
+    </div>
+    <div class="metric-card c-red">
+      <div class="metric-icon">🔥</div>
+      <div class="metric-label">Flame sensor</div>
+      <div class="metric-value" id="mFlame" style="font-size:18px;margin-top:4px">CLEAR</div>
+      <div class="metric-sub">V5 · GPIO 27</div>
+    </div>
+    <div class="metric-card c-blue">
+      <div class="metric-icon">🌡</div>
+      <div class="metric-label">Temperature</div>
+      <div class="metric-value" id="mTemp">--<span class="metric-unit">°C</span></div>
+      <div class="metric-sub">V1 · DHT22 GPIO25</div>
+    </div>
+    <div class="metric-card c-green">
+      <div class="metric-icon">💧</div>
+      <div class="metric-label">Humidity</div>
+      <div class="metric-value" id="mHum">--<span class="metric-unit">%</span></div>
+      <div class="metric-sub">V2 · DHT22 GPIO25</div>
+    </div>
+  </div>
+
+  <!-- Gas bar -->
+  <div class="section-label">Gas concentration</div>
+  <div class="gas-bar-section card-row">
+    <div class="gas-card">
+      <div class="gas-card-top">
+        <span class="gas-card-label">Raw ADC value</span>
+        <span class="gas-raw" id="gasRaw">---</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" id="gasBarFill" style="width:0%"></div>
+        <div class="threshold-line" style="left:97.7%"></div>
+      </div>
+      <div class="bar-markers">
+        <span>0</span>
+        <span id="gasPct">0%</span>
+        <span style="color:rgba(239,68,68,0.7)">▲4000</span>
+        <span>4095</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Relays & actuators -->
+  <div class="section-label">Actuators &amp; relays</div>
+  <div class="relay-section card-row">
+    <div class="relay-card">
+      <div class="relay-item">
+        <div class="relay-icon green" id="fanIcon">💨</div>
+        <div class="relay-name">
+          <p>Exhaust Fan</p>
+          <span>GPIO26 → Arduino D2 → Relay D3</span>
+        </div>
+        <div class="relay-badge off" id="fanBadge">OFF</div>
+      </div>
+      <div class="relay-item">
+        <div class="relay-icon blue" id="pumpIcon">🚿</div>
+        <div class="relay-name">
+          <p>Water Pump</p>
+          <span>GPIO23 → Arduino D4 → Relay D7</span>
+        </div>
+        <div class="relay-badge off" id="pumpBadge">OFF</div>
+      </div>
+      <div class="relay-item">
+        <div class="relay-icon amber" id="buzzerIcon">🔔</div>
+        <div class="relay-name">
+          <p>Buzzer</p>
+          <span>GPIO 14 · Active HIGH</span>
+        </div>
+        <div class="relay-badge off" id="buzzerBadge">OFF</div>
+      </div>
+      <div class="relay-item">
+        <div class="relay-icon gray">💡</div>
+        <div class="relay-name">
+          <p>Status LEDs</p>
+          <span>Arduino D8 (yellow) · D9 (red)</span>
+        </div>
+        <div class="relay-badge" id="ledBadge" style="background:rgba(253,224,71,0.15);color:#fde047">YELLOW</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Servo -->
+  <div class="section-label">Servo scanner</div>
+  <div class="servo-section card-row">
+    <div class="servo-card">
+      <div class="servo-top">
+        <div>
+          <div class="metric-label">Current angle</div>
+          <div class="servo-deg"><span id="servoDeg">--</span><span>°</span></div>
+        </div>
+        <div style="text-align:right">
+          <div class="metric-label">Status</div>
+          <div class="servo-state" id="servoState">Sweeping 0°→180°</div>
+          <div class="servo-state" style="margin-top:2px">GPIO 13 · 50Hz</div>
+        </div>
+      </div>
+      <div class="servo-track">
+        <div class="servo-thumb" id="servoThumb" style="left:calc(50% - 9px)"></div>
+      </div>
+      <div class="servo-labels"><span>0°</span><span>90°</span><span>180°</span></div>
+    </div>
+  </div>
+
+  <!-- SIM900 + Blynk pins -->
+  <div class="section-label">Communications &amp; Blynk</div>
+  <div class="info-grid card-row">
+    <div class="info-card">
+      <h3>SIM900</h3>
+      <div class="info-row">
+        <span class="info-row-label">Phone</span>
+        <span class="info-row-val" style="font-size:10px">+917012018618</span>
+      </div>
+      <div class="info-row">
+        <span class="info-row-label">Location</span>
+        <span class="info-row-val" style="font-size:11px">LPU Punjab</span>
+      </div>
+      <div class="info-row">
+        <span class="info-row-label">SMS sent</span>
+        <span class="info-row-val" id="smsSent">NO</span>
+      </div>
+      <div class="info-row">
+        <span class="info-row-label">Call made</span>
+        <span class="info-row-val" id="callMade">NO</span>
+      </div>
+    </div>
+    <div class="info-card">
+      <h3>Blynk V-Pins</h3>
+      <div class="vpin-grid">
+        <div class="vpin"><div class="vpin-name">V0 gas</div><div class="vpin-val" id="v0">---</div></div>
+        <div class="vpin"><div class="vpin-name">V1 temp</div><div class="vpin-val" id="v1">--°</div></div>
+        <div class="vpin"><div class="vpin-name">V2 hum</div><div class="vpin-val" id="v2">--%</div></div>
+        <div class="vpin"><div class="vpin-name">V3 status</div><div class="vpin-val" id="v3" style="font-size:9px">SAFE</div></div>
+        <div class="vpin"><div class="vpin-name">V4 gas?</div><div class="vpin-val" id="v4">0</div></div>
+        <div class="vpin"><div class="vpin-name">V5 flame?</div><div class="vpin-val" id="v5">0</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Event log -->
+  <div class="section-label">Event log</div>
+  <div class="log-section card-row">
+    <div class="log-card" id="logWrap">
+      <div class="log-item"><span class="log-time">--:--:--</span><span class="log-msg info">Waiting for first data fetch...</span></div>
+    </div>
+  </div>
+
+  <!-- Config -->
+  <div class="section-label">Configuration</div>
+  <div class="config-section card-row">
+    <div class="config-card">
+      <h3>⚙ Blynk connection</h3>
+      <div class="config-row">
+        <span class="config-label">Auth Token</span>
+        <input class="config-input" id="cfgToken" type="text" value="fJMJbHs0MuGgijt8nb41_37yi9uC47vi" placeholder="Your Blynk token"/>
+      </div>
+      <div class="config-row">
+        <span class="config-label">Blynk Server</span>
+        <input class="config-input" id="cfgServer" type="text" value="blynk.cloud" placeholder="blynk.cloud"/>
+      </div>
+      <div class="config-row">
+        <span class="config-label">Poll interval</span>
+        <input class="config-input" id="cfgInterval" type="number" value="2" min="1" max="30" style="width:60px"/>
+        <span style="font-size:12px;color:var(--muted);margin-left:4px">sec</span>
+      </div>
+      <div class="config-row">
+        <span class="config-label">Gas threshold</span>
+        <input class="config-input" id="cfgThreshold" type="number" value="4000" style="width:80px"/>
+        <span style="font-size:12px;color:var(--muted);margin-left:4px">/ 4095</span>
+      </div>
+      <button class="save-btn" onclick="applyConfig()">Apply &amp; Connect</button>
+    </div>
+  </div>
+</div>
+
+<!-- Connection bar -->
+<div class="conn-bar">
+  <div class="conn-text"><span class="conn-dot loading" id="connDot"></span><span id="connText">Connecting...</span></div>
+  <div class="conn-right" id="connRight">v1.0 · ESP32</div>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────
+let CONFIG = {
+  token: 'fJMJbHs0MuGgijt8nb41_37yi9uC47vi',
+  server: 'blynk.cloud',
+  interval: 2,
+  threshold: 4000
+};
+
+let pollTimer = null;
+let fetchCount = 0;
+let smsSentState = false;
+let callMadeState = false;
+let servoAngle = 90;
+let servoDir = 1;
+let lastStatus = 'safe';
+
+// ── BLYNK API ───────────────────────────────────────────────
+async function blynkGet(pin) {
+  const url = `https://${CONFIG.server}/${CONFIG.token}/get/${pin}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return data[0];
+}
+
+async function fetchAll() {
+  setConnState('loading', 'Fetching...');
+  setRefreshSpinning(true);
+
+  try {
+    // Fetch all 6 virtual pins in parallel
+    const [v0, v1, v2, v3, v4, v5] = await Promise.all([
+      blynkGet('V0'), blynkGet('V1'), blynkGet('V2'),
+      blynkGet('V3'), blynkGet('V4'), blynkGet('V5')
+    ]);
+
+    const gasValue   = parseFloat(v0) || 0;
+    const temp       = parseFloat(v1);
+    const hum        = parseFloat(v2);
+    const statusStr  = String(v3).trim();
+    const gasFlag    = parseInt(v4) === 1;
+    const flameFlag  = parseInt(v5) === 1;
+
+    updateDashboard({ gasValue, temp, hum, statusStr, gasFlag, flameFlag });
+    setConnState('online', 'Blynk connected');
+    fetchCount++;
+    document.getElementById('connRight').textContent = `#${fetchCount} · ${nowStr()}`;
+    showToast(false);
+  } catch (e) {
+    console.error('Blynk fetch error:', e);
+    setConnState('offline', 'Connection failed');
+    showToast(true);
+    addLog('Fetch error: ' + e.message, 'danger');
+  }
+
+  setRefreshSpinning(false);
+}
+
+// ── DASHBOARD UPDATE ─────────────────────────────────────────
+function updateDashboard({ gasValue, temp, hum, statusStr, gasFlag, flameFlag }) {
+  const threshold = CONFIG.threshold;
+
+  // Status hero
+  let heroClass, badgeClass, mainText, subText;
+  if (gasFlag && flameFlag) {
+    heroClass = 'danger'; mainText = 'DANGER — Gas & Flame!';
+    subText = 'Fan ON · Pump ON · Buzzer ON · SMS + Call triggered';
+    if (!smsSentState) { smsSentState = true; addLog('SMS sent — Gas & Flame at LPU Punjab', 'danger'); }
+    if (!callMadeState) { callMadeState = true; addLog('Emergency call made to +917012018618', 'danger'); }
+  } else if (gasFlag) {
+    heroClass = 'gas'; mainText = 'Gas Leakage Detected';
+    subText = 'Fan activated · SMS sent · Monitoring...';
+    if (!smsSentState) { smsSentState = true; addLog('SMS sent — Gas leakage at LPU Punjab', 'warn'); }
+  } else if (flameFlag) {
+    heroClass = 'flame'; mainText = 'Flame Alert!';
+    subText = 'Pump ON · Emergency call made · Stay clear';
+    if (!callMadeState) { callMadeState = true; addLog('Emergency call made — flame detected', 'danger'); }
+  } else {
+    heroClass = 'safe'; mainText = 'All systems normal';
+    subText = 'Gas & flame sensors nominal';
+    if (smsSentState || callMadeState) addLog('Situation cleared — system reset to SAFE', 'ok');
+    smsSentState = false; callMadeState = false;
+  }
+
+  badgeClass = heroClass;
+  const hero = document.getElementById('statusHero');
+  hero.className = 'status-hero ' + heroClass;
+  document.getElementById('statusBadge').className = 'status-badge ' + badgeClass;
+  document.getElementById('statusPulse').className = 'pulse ' + badgeClass;
+  document.getElementById('statusLabel').textContent = (statusStr || heroClass).toUpperCase();
+  document.getElementById('statusMain').textContent = mainText;
+  document.getElementById('statusSub').textContent = subText;
+  document.getElementById('statusTime').textContent = nowStr();
+
+  if (heroClass !== lastStatus) {
+    addLog('Status changed: ' + lastStatus.toUpperCase() + ' → ' + heroClass.toUpperCase(), heroClass === 'safe' ? 'ok' : heroClass === 'gas' ? 'warn' : 'danger');
+    lastStatus = heroClass;
+  }
+
+  // Metric cards
+  document.getElementById('mGas').innerHTML = Math.round(gasValue) + '<span class="metric-unit"> raw</span>';
+  document.getElementById('mGasSub').textContent = gasFlag ? '⚠ Above threshold!' : 'V0 · GPIO 34';
+
+  const flameEl = document.getElementById('mFlame');
+  flameEl.textContent = flameFlag ? 'ALERT' : 'CLEAR';
+  flameEl.style.color = flameFlag ? 'var(--danger)' : 'var(--safe)';
+
+  document.getElementById('mTemp').innerHTML = isNaN(temp) ? '--<span class="metric-unit">°C</span>' : temp.toFixed(1) + '<span class="metric-unit">°C</span>';
+  document.getElementById('mHum').innerHTML = isNaN(hum) ? '--<span class="metric-unit">%</span>' : hum.toFixed(1) + '<span class="metric-unit">%</span>';
+
+  // Gas bar
+  const pct = Math.min(100, (gasValue / 4095) * 100);
+  document.getElementById('gasBarFill').style.width = pct + '%';
+  document.getElementById('gasBarFill').style.background =
+    gasValue > threshold ? 'var(--danger)' :
+    gasValue > threshold * 0.8 ? 'var(--warn)' : 'var(--safe)';
+  document.getElementById('gasRaw').textContent = Math.round(gasValue);
+  document.getElementById('gasPct').textContent = pct.toFixed(1) + '%';
+
+  // Actuator badges
+  const fanOn = gasFlag;
+  const pumpOn = flameFlag;
+  const buzzerOn = gasFlag || flameFlag;
+  setBadge('fanBadge', fanOn ? 'ON' : 'OFF', fanOn ? 'on' : 'off');
+  setBadge('pumpBadge', pumpOn ? 'ON' : 'OFF', pumpOn ? 'on' : 'off');
+  setBadge('buzzerBadge', buzzerOn ? 'ON' : 'OFF', buzzerOn ? 'on' : 'off');
+  const ledBadge = document.getElementById('ledBadge');
+  if (gasFlag || flameFlag) {
+    ledBadge.textContent = 'RED';
+    ledBadge.style.background = 'rgba(239,68,68,0.15)';
+    ledBadge.style.color = 'var(--danger)';
+  } else {
+    ledBadge.textContent = 'YELLOW';
+    ledBadge.style.background = 'rgba(253,224,71,0.15)';
+    ledBadge.style.color = '#fde047';
+  }
+
+  // Servo sim (mimics the sweep in firmware)
+  if (!flameFlag) {
+    servoAngle += servoDir * 5;
+    if (servoAngle >= 180) { servoAngle = 180; servoDir = -1; }
+    if (servoAngle <= 0) { servoAngle = 0; servoDir = 1; }
+    document.getElementById('servoState').textContent = servoDir > 0 ? 'Sweeping →' : 'Sweeping ←';
+  } else {
+    document.getElementById('servoState').textContent = '⏸ Locked (flame)';
+  }
+  document.getElementById('servoDeg').textContent = Math.round(servoAngle);
+  const thumbPct = servoAngle / 180;
+  document.getElementById('servoThumb').style.left = 'calc(' + (thumbPct * 100) + '% - 9px)';
+
+  // SIM900
+  document.getElementById('smsSent').textContent = smsSentState ? 'YES' : 'NO';
+  document.getElementById('smsSent').className = 'info-row-val ' + (smsSentState ? 'red' : '');
+  document.getElementById('callMade').textContent = callMadeState ? 'YES' : 'NO';
+  document.getElementById('callMade').className = 'info-row-val ' + (callMadeState ? 'red' : '');
+
+  // Blynk V-Pins
+  document.getElementById('v0').textContent = Math.round(gasValue);
+  document.getElementById('v1').textContent = isNaN(temp) ? '--' : temp.toFixed(1) + '°';
+  document.getElementById('v2').textContent = isNaN(hum) ? '--' : Math.round(hum) + '%';
+  document.getElementById('v3').textContent = statusStr || 'SAFE';
+  document.getElementById('v4').textContent = gasFlag ? '1' : '0';
+  document.getElementById('v5').textContent = flameFlag ? '1' : '0';
+}
+
+// ── HELPERS ──────────────────────────────────────────────────
+function nowStr() {
+  return new Date().toLocaleTimeString('en-IN', { hour12: false });
+}
+
+function setBadge(id, text, cls) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'relay-badge ' + cls;
+}
+
+function setConnState(state, text) {
+  const dot = document.getElementById('connDot');
+  dot.className = 'conn-dot ' + state;
+  document.getElementById('connText').textContent = text;
+}
+
+function setRefreshSpinning(spin) {
+  document.getElementById('refreshBtn').classList.toggle('spinning', spin);
+}
+
+let toastTimer;
+function showToast(show) {
+  const t = document.getElementById('toast');
+  clearTimeout(toastTimer);
+  if (show) {
+    t.classList.add('show');
+    toastTimer = setTimeout(() => t.classList.remove('show'), 4000);
+  } else {
+    t.classList.remove('show');
+  }
+}
+
+function addLog(msg, cls = 'info') {
+  const wrap = document.getElementById('logWrap');
+  const div = document.createElement('div');
+  div.className = 'log-item';
+  div.innerHTML = `<span class="log-time">${nowStr()}</span><span class="log-msg ${cls}">${msg}</span>`;
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+  if (wrap.children.length > 50) wrap.removeChild(wrap.firstChild);
+}
+
+function applyConfig() {
+  CONFIG.token     = document.getElementById('cfgToken').value.trim();
+  CONFIG.server    = document.getElementById('cfgServer').value.trim() || 'blynk.cloud';
+  CONFIG.interval  = Math.max(1, parseInt(document.getElementById('cfgInterval').value) || 2);
+  CONFIG.threshold = parseInt(document.getElementById('cfgThreshold').value) || 4000;
+  startPolling();
+  addLog('Config applied — polling every ' + CONFIG.interval + 's', 'ok');
+}
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  fetchAll();
+  pollTimer = setInterval(fetchAll, CONFIG.interval * 1000);
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+addLog('App loaded — starting connection to Blynk...', 'info');
+startPolling();
+</script>
+</body>
+</html>
